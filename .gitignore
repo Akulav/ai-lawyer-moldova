@@ -7,8 +7,10 @@ data/
 # Downloaded on first run: portable Ollama, Python and uv
 .runtime/
 
-# Rust build output of the tray launcher
+# Rust build output of the tray launcher, and any built or downloaded executable: AvocatAI.exe is published
+# through GitHub Releases, never committed.
 launcher/target/
+*.exe
 
 # Python
 .venv/

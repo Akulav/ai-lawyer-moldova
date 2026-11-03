@@ -1,39 +1,75 @@
-Avocat AI Moldova - View-Only License
+Akulav Source-Available License 1.0
 
-Copyright (c) 2026 the owner of this repository. All rights reserved.
+Copyright (c) 2026 Akulav. All rights reserved.
 
-1. PERMITTED USE
-You may view and read the source code and documentation in this repository.
-If this repository is hosted on GitHub, you also have the rights that GitHub's
-Terms of Service grant to its users for public repositories, such as viewing
-and forking within GitHub.
+This license covers the source code, documentation, release builds and other
+materials in this repository (the "Software"). The Software is source-available,
+not open source. By using it, you agree to these terms.
 
-2. RESTRICTIONS
-Except as stated in section 1, or with the copyright holder's prior written
-permission, you may not:
+1. WHAT YOU MAY DO
 
-  a) use, run or deploy this software;
-  b) copy or reproduce it, in whole or in part;
-  c) modify it or create derivative works from it;
-  d) distribute, publish, sublicense, sell or offer it as a service;
-  e) use it or any part of it to train machine learning models.
+   a. Use releases. You may download, install and run official release builds
+      of the Software, and builds you make yourself, for any purpose and on any
+      number of devices, as long as you do not break section 2.
 
-3. CONTRIBUTIONS
-Unless agreed otherwise in writing, by submitting a contribution to this
-repository you grant the copyright holder a perpetual, worldwide, royalty-free,
-irrevocable license to use, modify, distribute and sublicense that contribution
-under any terms, and you confirm that you have the right to grant it.
+   b. View. You may view, read and study all of the Software.
 
-4. THIRD-PARTY MATERIAL
-This license covers only the original work of this repository. It does not
-restrict material you may lawfully use on other grounds. Official legal texts,
-third-party dependencies, the Ollama runtime and AI models remain subject to
-their own terms.
+   c. Modify privately. You may make private copies and private forks of the
+      Software and change them for your own use.
 
-5. NO WARRANTY AND NO LEGAL ADVICE
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE, ACCURACY AND NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER
-BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE SOFTWARE
-OR ITS USE. THE SOFTWARE DOES NOT PROVIDE LEGAL ADVICE AND ITS OUTPUT MAY BE
-WRONG, INCOMPLETE OR OUT OF DATE.
+   d. Share with friends and family. You may share your modified versions
+      privately, free of charge, with a small group of friends or members of
+      your family. They receive them under this same license and must follow
+      these terms too. Sharing must stay private: no public uploads, public
+      repositories, public links, stores or mirrors.
+
+   e. Contribute back. You may fork this repository on GitHub only to send
+      changes back to it as pull requests or patches.
+
+2. WHAT YOU MAY NOT DO
+
+   a. Distribute modifications. You may not publish, share or distribute
+      modified versions of the Software, or any work based on it, in any form,
+      except as allowed in section 1(d) and 1(e).
+
+   b. Redistribute. You may not redistribute the Software, modified or not, in
+      any form: no re-uploads, mirrors, bundles, repackaged installers, app
+      stores or hosting it for others. Linking to this repository or its
+      official releases is fine.
+
+   c. Make money. You may not sell, rent, sublicense or charge for the
+      Software or any modified version of it; offer it, or any part of it, as
+      a paid product or service; or use it to earn money in any other way,
+      including advertising, donations or paid access tied to it. Using the
+      Software as a tool for your own personal tasks does not count as making
+      money from it.
+
+   d. Remove notices. You may not remove or change this license or the
+      copyright notices in the Software.
+
+3. THIRD-PARTY PARTS
+
+   Third-party libraries, fonts, models, data and other components included
+   with or downloaded by the Software keep their own licenses. This license
+   does not change those terms.
+
+4. TERMINATION
+
+   If you break these terms, your rights under this license end automatically.
+   You must then stop using the Software and delete every copy you have,
+   including modified versions.
+
+5. OTHER PERMISSIONS
+
+   Anything not allowed above needs written permission from the copyright
+   holder. Ask by opening an issue in this repository.
+
+6. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE.
