@@ -1,0 +1,39 @@
+Avocat AI Moldova - View-Only License
+
+Copyright (c) 2026 the owner of this repository. All rights reserved.
+
+1. PERMITTED USE
+You may view and read the source code and documentation in this repository.
+If this repository is hosted on GitHub, you also have the rights that GitHub's
+Terms of Service grant to its users for public repositories, such as viewing
+and forking within GitHub.
+
+2. RESTRICTIONS
+Except as stated in section 1, or with the copyright holder's prior written
+permission, you may not:
+
+  a) use, run or deploy this software;
+  b) copy or reproduce it, in whole or in part;
+  c) modify it or create derivative works from it;
+  d) distribute, publish, sublicense, sell or offer it as a service;
+  e) use it or any part of it to train machine learning models.
+
+3. CONTRIBUTIONS
+Unless agreed otherwise in writing, by submitting a contribution to this
+repository you grant the copyright holder a perpetual, worldwide, royalty-free,
+irrevocable license to use, modify, distribute and sublicense that contribution
+under any terms, and you confirm that you have the right to grant it.
+
+4. THIRD-PARTY MATERIAL
+This license covers only the original work of this repository. It does not
+restrict material you may lawfully use on other grounds. Official legal texts,
+third-party dependencies, the Ollama runtime and AI models remain subject to
+their own terms.
+
+5. NO WARRANTY AND NO LEGAL ADVICE
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, ACCURACY AND NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER
+BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE SOFTWARE
+OR ITS USE. THE SOFTWARE DOES NOT PROVIDE LEGAL ADVICE AND ITS OUTPUT MAY BE
+WRONG, INCOMPLETE OR OUT OF DATE.

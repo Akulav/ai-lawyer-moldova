@@ -1,0 +1,36 @@
+# Generated at runtime: the legal index, chat history and AI models (many GB)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Downloaded on first run: portable Ollama, Python and uv
+.runtime/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Interrupted downloads and logs
+*.part
+*.log
+
+# Local configuration and secrets
+.env
+.env.*
+
+# Editors and tools
+.vscode/
+.idea/
+.claude/
+
+# Operating system
+Thumbs.db
+Desktop.ini
+.DS_Store
