@@ -139,6 +139,8 @@ class Tagger:
                     self._tag(con, model, batch)
                     continue
             except Exception as e:  # keep the worker alive through engine restarts
+                if self.stop.is_set():
+                    break  # the app is shutting down and stopped the engine mid-request; not an error
                 log.exception("tagger error")
                 self.last_error = str(e)[:300]
                 time.sleep(30)

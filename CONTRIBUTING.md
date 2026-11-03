@@ -20,6 +20,37 @@ uv run python -m app.main
 
 Tests use a temporary data folder set in `tests/conftest.py`, so they never touch your index. They don't need network access or a model.
 
+## The tray launcher
+
+`launcher/` is a small Rust program that builds `AvocatAI.exe`. You need [Rust](https://rustup.rs/) with the MSVC target.
+
+```bash
+cd launcher && cargo build --release
+```
+
+The exe embeds `app/`, `pyproject.toml` and `uv.lock`. On start it does the following, in order:
+
+1. Puts itself in a Windows job that ends every child process when the launcher exits.
+2. Extracts the embedded sources next to itself, unless the folder holds a `.git` checkout.
+3. Downloads uv into `.runtime/uv`.
+4. Runs `uv run --frozen python -m app.main` hidden, logging to `.runtime/app.log`.
+5. Opens the browser once `/api/identity` answers on the port written to `.runtime/app.port`.
+
+**Ieșire** calls `POST /api/quit`, so the app shuts its AI engine down cleanly. The job ends whatever is left.
+
+To try a change against this checkout, use the variables below, then run `target\debug\AvocatAI.exe`:
+
+| Variable | Effect |
+| --- | --- |
+| `AVOCAT_ROOT` | The repository folder. The launcher uses this folder's sources as they are. |
+| `AVOCAT_NO_BROWSER=1` | Keeps the browser from opening, for automated runs. |
+
+## Releases
+
+Every push to `main` that touches more than documentation runs `.github/workflows/release.yml`. It runs the tests, then builds `AvocatAI.exe` and publishes it as a GitHub Release.
+
+The version is `MAJOR.MINOR` from `launcher/Cargo.toml`, plus the next patch number after the latest matching `vMAJOR.MINOR.*` tag. Nothing is committed back. To start a new series such as 1.1.0, change `version` in `launcher/Cargo.toml`.
+
 ## Project rules
 
 - **Don't bypass access controls.** No browser impersonation, challenge solvers or similar techniques for any data source. See [Data sources](docs/DATA_SOURCES.md).

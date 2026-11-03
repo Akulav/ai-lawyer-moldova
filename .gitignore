@@ -7,6 +7,9 @@ data/
 # Downloaded on first run: portable Ollama, Python and uv
 .runtime/
 
+# Rust build output of the tray launcher
+launcher/target/
+
 # Python
 .venv/
 __pycache__/

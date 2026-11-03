@@ -1,6 +1,7 @@
 """HTTP API and static UI. Bound to localhost unless MAL_HOST says otherwise."""
 import json
 import logging
+import os
 import re
 import threading
 import webbrowser
@@ -8,13 +9,13 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 import httpx
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import db, indexer, rag, sysinfo, tree, verify
-from .config import APP_HOST, APP_PORT, ROOT, STATIC, port_is_free
+from .config import APP_HOST, APP_PORT, ROOT, RUNTIME, STATIC, port_is_free
 from .llm import CATALOG, runtime
 from .tagger import tagger, tagger_status
 from .text import fold, fts_query, tokens
@@ -40,7 +41,21 @@ app = FastAPI(title="Avocat AI Moldova", lifespan=lifespan)
 # ---- status ----------------------------------------------------------------------------
 @app.get("/api/identity")
 def identity():
-    return dict(app="moldova-ai-lawyer", root=str(ROOT))
+    return dict(app="moldova-ai-lawyer", root=str(ROOT), version=os.environ.get("AVOCAT_VERSION"))
+
+
+_server = None  # the running uvicorn server, so /api/quit can stop it
+
+
+@app.post("/api/quit")
+def quit_app(request: Request):
+    """Stop the server the normal way, so shutdown stops the AI engine and frees its RAM and VRAM. Used by the
+    tray icon's Quit. Only from this computer: with run-lan.bat the page is reachable from the network."""
+    if request.client is None or request.client.host not in ("127.0.0.1", "::1"):
+        raise HTTPException(403, "Programul poate fi oprit doar de pe calculatorul pe care rulează.")
+    if _server is not None:
+        _server.should_exit = True
+    return dict(ok=True)
 
 
 @app.get("/api/status")
@@ -520,10 +535,15 @@ def _choose_port() -> tuple[int, bool]:
 
 if __name__ == "__main__":
     import uvicorn
+    # Started by AvocatAI.exe: the tray launcher opens the browser itself, once the server answers.
+    launched = os.environ.get("AVOCAT_LAUNCHER") == "1"
     port, running = _choose_port()
     url = f"http://127.0.0.1:{port}"
+    # The launcher reads the port from here, since the preferred one may be taken.
+    (RUNTIME / "app.port").write_text(str(port))
     if running:
-        webbrowser.open(url)
+        if not launched:
+            webbrowser.open(url)
         raise SystemExit(0)
     print(f"  Adresa: {url}")
     if APP_HOST != "127.0.0.1":
@@ -531,5 +551,7 @@ if __name__ == "__main__":
             print(f"  Din rețea: http://{ip}:{port}")
         if port != APP_PORT:
             print(f"  Atenție: portul {APP_PORT} era ocupat, deci se folosește {port}. Deschideți-l în firewall.")
-    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
-    uvicorn.run(app, host=APP_HOST, port=port, log_level="warning")
+    if not launched:
+        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+    _server = uvicorn.Server(uvicorn.Config(app, host=APP_HOST, port=port, log_level="warning"))
+    _server.run()

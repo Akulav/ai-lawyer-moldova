@@ -22,9 +22,23 @@ Running the app requires written permission from the copyright holder (see [Lice
 
 **Requirements:** Windows 10 or 11 (x64) and an internet connection for the first run.
 
-With permission, download this repository and double-click `run.bat`. Nothing is installed system-wide: uv, Python, Ollama and the models all stay inside the project folder.
+With permission, download `AvocatAI.exe` from the latest [release](https://github.com/Akulav/ai-lawyer-moldova/releases/latest). Put it in a folder of its own with at least 30 GB free, then run it. Nothing is installed system-wide: uv, Python, Ollama and the models all stay in that folder.
 
 The first run downloads the components below, and the browser opens at <http://127.0.0.1:18917>. If that port is taken, the app uses the next free one.
+
+The app runs in the system tray, not in a console window:
+
+| Action | Result |
+| --- | --- |
+| Left-click the icon | Opens the app in the browser. |
+| Right-click → **Deschide folderul programului** | Opens the folder. |
+| Right-click → **Deschide jurnalul** | Opens the log. |
+| Right-click → **Repornește** | Restarts the server. |
+| Right-click → **Ieșire** | Stops the server and the AI engine, which frees the RAM and VRAM the model used. |
+
+The AI engine also stops if the program is ended some other way, for example from Task Manager. Running the exe again while the app is running only opens the browser.
+
+From a copy of this repository, `run.bat` starts the same app in a console window.
 
 To use the app from other devices on your LAN or VPN, start it with `run-lan.bat` instead and allow port 18917 in the firewall. The console lists the addresses to open, such as `http://192.168.1.20:18917`. There is no login, so anyone who can reach that port can use the app and read its conversations: do this only on networks you trust.
 

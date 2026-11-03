@@ -1,0 +1,88 @@
+# Every push to main: run the tests, then build AvocatAI.exe with the next version and publish it as a
+# GitHub Release. The version is MAJOR.MINOR from launcher/Cargo.toml and the next free patch number after
+# the latest matching tag, so v1.0.0, v1.0.1, ... Change MAJOR.MINOR in Cargo.toml to start a new series.
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", "LICENSE"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # to push the tag and create the release
+
+# Two pushes in a row must not compute the same version.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Python tests
+        run: uv run --python 3.12 --frozen pytest -q
+
+  release:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # all tags, to find the latest version
+
+      - name: Next version
+        id: version
+        shell: pwsh
+        run: |
+          $m = Select-String -Path launcher/Cargo.toml -Pattern '^version = "(\d+)\.(\d+)\.\d+"' | Select-Object -First 1
+          $major = $m.Matches[0].Groups[1].Value
+          $minor = $m.Matches[0].Groups[2].Value
+          $patches = git tag --list "v$major.$minor.*" | ForEach-Object {
+            if ($_ -match "^v$major\.$minor\.(\d+)$") { [int]$Matches[1] }
+          }
+          # Count, not truth: a lone tag v1.0.0 gives the number 0, which `if` would read as "no tags".
+          $patch = if (@($patches).Count) { (@($patches) | Measure-Object -Maximum).Maximum + 1 } else { 0 }
+          $version = "$major.$minor.$patch"
+          "Version $version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          # Only for this build; nothing is committed back.
+          (Get-Content launcher/Cargo.toml -Raw) -replace '(?m)^version = ".*"', "version = `"$version`"" |
+            Set-Content launcher/Cargo.toml -NoNewline
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: launcher
+
+      - name: Build AvocatAI.exe
+        working-directory: launcher
+        run: cargo build --release
+
+      - name: Collect files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item launcher/target/release/AvocatAI.exe dist/
+          $exe = Get-Item dist/AvocatAI.exe
+          if ($exe.VersionInfo.ProductVersion -ne "${{ steps.version.outputs.version }}") { throw "the exe does not carry the new version" }
+          $hash = (Get-FileHash dist/AvocatAI.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  AvocatAI.exe" | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: Avocat AI Moldova ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            dist/AvocatAI.exe
+            dist/SHA256SUMS.txt
+          body: |
+            Descărcați `AvocatAI.exe`, puneți-l într-un folder separat cu cel puțin 30 GB liberi și porniți-l. La prima pornire descarcă tot ce îi trebuie în acel folder: Python, motorul AI și modelul. Programul rulează în bara de sistem; clic dreapta pe pictogramă → Ieșire oprește și motorul AI.
+
+            Download `AvocatAI.exe` into its own folder with at least 30 GB free and run it. On the first run it downloads everything it needs into that folder: Python, the AI engine and the model. It runs in the system tray; right-click the icon → Ieșire also stops the AI engine.

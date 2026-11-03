@@ -136,6 +136,12 @@ def test_split_skips_old_toc_without_dot_leaders():
     assert "Text al hotărîrii" in bodies[710]
 
 
+def test_quit_only_from_this_computer():
+    # The test client is not 127.0.0.1, like a device on the LAN under run-lan.bat: it must not stop the app.
+    assert client.post("/api/quit").status_code == 403
+    assert "version" in client.get("/api/identity").json()
+
+
 def statuses(con):
     return {r["id"]: r["status"] for r in con.execute("SELECT id,status FROM issues")}
 
