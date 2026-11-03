@@ -24,16 +24,21 @@ flowchart LR
 | `app/gazette.py` | Parsing gazette listings and PDFs, splitting issues into acts |
 | `app/text.py` | Folding, stemming, act references, repeal and date detection, article splitting |
 | `app/llm.py` | Portable Ollama lifecycle, model catalogue, inference |
+| `app/tagger.py` | Background thread that files untagged acts into domains with the model |
+| `app/verify.py` | Index health checks and their safe repairs |
+| `app/sysinfo.py` | RAM and VRAM readings for the Index page |
 | `app/db.py` | Schema and connections |
-| `app/config.py` | Paths, ports, port availability |
+| `app/config.py` | Paths, ports, port availability, name and version |
+| `app/static/` | The single-page UI: `index.html`, `app.js`, `style.css` |
+| `launcher/` | Rust tray launcher that builds `AvocatAI.exe` |
 
 ## Answering a question
 
 Each level narrows the search. Every step is streamed to the UI.
 
 1. **Branch and domain.** The model picks at most two domains from the tree and suggests legal search terms. A JSON schema restricts its output to real domain IDs. If the call fails, `keyword_route` is the fallback.
-2. **Acts.** The search is scoped to acts in those domains plus laws amending their key acts. Repealed acts are excluded. If nothing matches, the search widens to all legislation and the UI says so.
-3. **Articles.** BM25 ranks the chunks, with key acts first and a per-act cap. The model chooses up to 8 from a pool of 40.
+2. **Acts.** All legislation is searched, and acts in those domains (plus laws amending their key acts) get a relevance bonus, so an act filed elsewhere can still win on merit. Repealed acts are excluded. If nothing in the branch matches, the UI says the search was widened.
+3. **Articles.** BM25 ranks the chunks, with key acts boosted most and a per-act cap (larger for key acts). The model chooses up to 8 from a pool of 50.
 4. **Amendments.** Because published texts aren't consolidated, `amendment_clauses` adds clauses from later laws that instruct a change to a chosen article.
 5. **Answer.** The model writes only from these sources under fixed headings. Scheduled changes are listed separately from law in force.
 6. **Checks.** The app warns about citations that match no source, answers with no citations, and unconsolidated sources. A question with no matching source gets a "not found" message and never reaches the model.
@@ -91,11 +96,15 @@ Each request gets 5 tries with growing waits for 429 and 5xx responses and netwo
 
 | Method and path | Purpose |
 | --- | --- |
-| `GET /api/status`, `GET /api/identity` | App state; instance identity |
+| `GET /api/status`, `GET /api/identity` | App state; instance identity (the launcher checks `app`) |
+| `POST /api/disclaimer` | Record that the disclaimer was accepted |
+| `POST /api/quit` | Clean shutdown, used by the tray's **Ieșire**; only from 127.0.0.1 |
 | `POST /api/chat` | Streaming answer (Server-Sent Events) |
 | `GET`, `DELETE /api/conversations...` | Chat history |
 | `GET /api/search`, `GET /api/acts/{id}`, `GET /api/tree` | Search and browsing |
 | `POST /api/index/pause`, `POST /api/index/resume`, `POST /api/import` | Index control and PDF import |
 | `GET /api/problems`, `POST /api/problems/{id}/retry`, `POST /api/problems/retry-all` | Failed issues |
+| `GET /api/verify`, `POST /api/verify/repair` | Index health check and safe repairs |
+| `POST /api/tagger/pause`, `POST /api/tagger/resume` | Background domain tagging |
 | `GET /api/models`, `POST /api/models/pull`, `/cancel`, `/active`, `/load`, `/unload`, `DELETE /api/models/{name}` | Model management |
 | `POST /api/engine/stop`, `POST /api/engine/start` | Stop or start the private Ollama, freeing all AI memory |

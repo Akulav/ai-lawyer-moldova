@@ -186,6 +186,22 @@ def test_retry_all_leaves_done_and_missing_alone():
     con.close()
 
 
+def test_empty_version_does_not_count_as_text():
+    # A version without chunks set has_text=1, which the health check flagged and its repair could not clear.
+    con = seed()
+    aid = indexer.upsert_act(con, dict(kind="lege", title="Lege de test fără text", num=9901, year=2030,
+                                       adopted="2030-01-01", number="9901"))
+    con.execute("INSERT INTO versions(act_id,effective,source) VALUES(?,?,?)", (aid, "2030-01-01", "monitorul"))
+    indexer.refresh_current_version(con, aid)
+    assert con.execute("SELECT has_text FROM acts WHERE id=?", (aid,)).fetchone()[0] == 0
+    con.rollback(); con.close()
+
+
+def test_search_page_below_one_is_first_page():
+    seed().close()
+    assert client.get("/api/search", params=dict(page=0)).json()["page"] == 1
+
+
 def test_short_title_found_only_as_heading_line():
     text = ("Se promulgă Codul vamal nr. 95.\nDin Codul vamal rezultă ceva.\n237\nC O D U L V A M A L\n"
             "Articolul 1. Obiect\nText.\nH O T Ă R Â R E\ncu privire la aprobarea Regulamentului pentru vize\nPunct.\n")

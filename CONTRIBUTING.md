@@ -1,6 +1,6 @@
 # Contributing
 
-This project is view-only, not open source. Running or modifying it requires written permission from the copyright holder, so please ask before starting work. Contributions are accepted under section 3 of the [LICENSE](LICENSE).
+This project is source-available, not open source. You may fork it on GitHub to send changes back as pull requests, as section 1(e) of the [LICENSE](LICENSE) allows; please open an issue to discuss larger changes before starting work.
 
 ## Setup
 

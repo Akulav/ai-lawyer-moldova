@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import db, indexer, rag, sysinfo, tree, verify
-from .config import APP_HOST, APP_PORT, ROOT, RUNTIME, STATIC, port_is_free
+from .config import APP_HOST, APP_NAME, APP_PORT, ROOT, RUNTIME, STATIC, VERSION, port_is_free
 from .llm import CATALOG, runtime
 from .tagger import tagger, tagger_status
 from .text import fold, fts_query, tokens
@@ -35,13 +35,14 @@ async def lifespan(_):
     runtime.shutdown()
 
 
-app = FastAPI(title="Avocat AI Moldova", lifespan=lifespan)
+app = FastAPI(title=APP_NAME, version=VERSION, lifespan=lifespan)
 
 
 # ---- status ----------------------------------------------------------------------------
 @app.get("/api/identity")
 def identity():
-    return dict(app="moldova-ai-lawyer", root=str(ROOT), version=os.environ.get("AVOCAT_VERSION"))
+    # "app" is what the tray launcher checks to recognise this server, so it must not change.
+    return dict(app="moldova-ai-lawyer", name=APP_NAME, root=str(ROOT), version=os.environ.get("AVOCAT_VERSION"))
 
 
 _server = None  # the running uvicorn server, so /api/quit can stop it
@@ -79,9 +80,11 @@ def status():
 @app.post("/api/disclaimer")
 def accept_disclaimer():
     con = db.connect()
-    db.set_setting(con, "disclaimer", "1")
-    con.close()
-    return dict(ok=True)
+    try:
+        db.set_setting(con, "disclaimer", "1")
+        return dict(ok=True)
+    finally:
+        con.close()
 
 
 # ---- chat ------------------------------------------------------------------------------
@@ -175,6 +178,7 @@ def _snippet(text: str, query: str, width: int = 300) -> str:
 @app.get("/api/search")
 def search(q: str = "", kind: str = "", status: str = "", domain: str = "", year_from: int | None = None,
            year_to: int | None = None, page: int = 1):
+    page = max(1, page)  # page 0 or below would slice from the end of the list
     con = db.connect()
     try:
         filters, params = [], []
@@ -466,16 +470,23 @@ def set_active(m: ModelIn):
     if name not in [x["name"] for x in runtime.installed()]:
         raise HTTPException(400, "Modelul nu este instalat.")
     con = db.connect()
-    db.set_setting(con, "active_model", name)
-    con.close()
-    return dict(ok=True)
+    try:
+        db.set_setting(con, "active_model", name)
+        return dict(ok=True)
+    finally:
+        con.close()
 
 
 @app.delete("/api/models/{name:path}")
 def delete_model(name: str):
+    _require_engine()
+    name = _check(name)  # the stripped name, so the pull entry and the active setting below still match
+    try:
+        runtime.delete(name)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Modelul nu a putut fi șters: {e}")
     con = db.connect()
     try:
-        runtime.delete(_check(name))
         runtime.pulls.pop(name, None)
         if db.get_setting(con, "active_model") == name:
             rest = runtime.installed()

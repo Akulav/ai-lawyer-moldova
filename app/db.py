@@ -96,12 +96,16 @@ def connect() -> sqlite3.Connection:
 
 
 def init() -> None:
-    with connect() as con:
+    con = connect()
+    try:
         # Added after the first release; CREATE IF NOT EXISTS leaves older tables as they were.
         cols = [r["name"] for r in con.execute("PRAGMA table_info(act_domain)")]
         if cols and "source" not in cols:
             con.execute("ALTER TABLE act_domain ADD COLUMN source TEXT DEFAULT 'kw'")
         con.executescript(SCHEMA)
+        con.commit()
+    finally:
+        con.close()  # `with con` only commits; it never closes
 
 
 def get_setting(con, key: str, default=None):

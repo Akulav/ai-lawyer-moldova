@@ -268,8 +268,9 @@ $("#newChat").onclick = () => { if (location.hash === "#chat") viewChat(); else 
 function highlight(text, q) {
   const safe = esc(text); const terms = (q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").match(/[a-z0-9]{4,}/g) || []);
   if (!terms.length) return safe;
-  const fold = safe.normalize("NFD"); if (fold.length === 0) return safe;
-  return safe.replace(/[\p{L}\p{N}]+/gu, w => {
+  // Entities from esc() are skipped whole: marking the "quot" of "&quot;" printed it as text.
+  return safe.replace(/&(?:[a-z]+|#\d+);|[\p{L}\p{N}]+/gu, w => {
+    if (w[0] === "&") return w;
     const f = w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
     return terms.some(t => f.startsWith(t.slice(0, Math.max(4, t.length - 2)))) ? `<mark>${w}</mark>` : w;
   });

@@ -1,17 +1,31 @@
-# Avocat AI Moldova
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Avocat AI Moldova: asistent juridic AI local pentru legislația Republicii Moldova" width="100%">
+</p>
 
-Asistent AI local de informare juridică pentru legislația Republicii Moldova. Întrebați în cuvinte simple și primiți un răspuns cu trimiteri la articole și linkuri către surse. Modelul, indexul și discuțiile rămân pe calculatorul dvs.
+<p align="center">
+  <a href="https://github.com/Akulav/ai-lawyer-moldova/releases/latest"><img alt="Ultima versiune" src="https://img.shields.io/github/v/release/Akulav/ai-lawyer-moldova?style=flat-square&color=0b3a6f"></a>
+  <img alt="Windows 10/11 x64" src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0b3a6f?style=flat-square">
+  <img alt="AI local" src="https://img.shields.io/badge/AI-local-e6c563?style=flat-square">
+</p>
 
-[Read in English](README.md)
+<p align="center"><a href="README.md">English</a> · <b>Română</b></p>
+
+---
+
+**Avocat AI Moldova** este un asistent AI local de informare juridică pentru legislația Republicii Moldova. Întrebați în cuvinte simple și primiți un răspuns cu trimiteri la articole și linkuri către surse. Modelul, indexul și discuțiile rămân pe calculatorul dvs.
 
 > [!WARNING]
 > **Nu este consultanță juridică și nu este un avocat.** Răspunsurile sunt generate automat și pot fi greșite, incomplete sau depășite. Verificați întotdeauna sursa citată și consultați un avocat autorizat pentru decizii importante.
 
 ## Pornire
 
-**Cerințe:** Windows 10 sau 11 (x64) și conexiune la internet la prima pornire.
+**Cerințe:** Windows 10 sau 11 (x64), cel puțin 30 GB liberi pe disc și conexiune la internet la prima pornire.
 
-Rularea necesită permisiunea scrisă a titularului drepturilor (vedeți secțiunea Licență). Cu această permisiune, descărcați `AvocatAI.exe` din ultima [versiune publicată](https://github.com/Akulav/ai-lawyer-moldova/releases/latest), puneți-l într-un folder separat cu cel puțin 30 GB liberi și porniți-l. Nimic nu se instalează în sistem: totul rămâne în acel folder.
+1. Descărcați `AvocatAI.exe` din ultima [versiune publicată](https://github.com/Akulav/ai-lawyer-moldova/releases/latest).
+2. Puneți-l într-un folder separat și porniți-l.
+3. Browserul se deschide singur când programul este gata.
+
+Nimic nu se instalează în sistem: totul rămâne în acel folder.
 
 Programul rulează în bara de sistem, lângă ceas, nu într-o fereastră:
 
@@ -27,7 +41,10 @@ Motorul AI se oprește și dacă programul este închis altfel, de exemplu din T
 
 Dintr-o copie a proiectului, `run.bat` pornește același program într-o fereastră de consolă. La prima pornire se descarcă motorul AI (circa 1,6 GB) și un model potrivit memoriei RAM (între 5,2 și 17,7 GB), iar interfața se deschide la <http://127.0.0.1:18917>. Dacă portul este ocupat, programul folosește următorul port liber.
 
-Pentru a folosi programul de pe alte dispozitive din rețeaua locală sau prin VPN, porniți-l cu `run-lan.bat` și permiteți portul 18917 în firewall. Fereastra programului afișează adresele de deschis, de exemplu `http://192.168.1.20:18917`. Nu există autentificare: oricine ajunge la acest port poate folosi programul și vedea conversațiile, deci faceți asta doar în rețele de încredere.
+Pentru a folosi programul de pe alte dispozitive din rețeaua locală sau prin VPN, porniți-l cu `run-lan.bat` și permiteți portul 18917 în firewall. Fereastra programului afișează adresele de deschis, de exemplu `http://192.168.1.20:18917`.
+
+> [!CAUTION]
+> Nu există autentificare: oricine ajunge la acest port poate folosi programul și vedea conversațiile, deci faceți asta doar în rețele de încredere.
 
 ## Ce face
 
@@ -59,4 +76,4 @@ Documentația tehnică este în limba engleză: [arhitectură](docs/ARCHITECTURE
 
 ## Licență
 
-**Doar pentru vizualizare, nu este open source.** Puteți citi codul, dar nu îl puteți rula, copia, modifica sau distribui fără permisiune scrisă. Detalii în [LICENSE](LICENSE).
+**Cod sursă disponibil, nu open source.** Puteți rula versiunile publicate și cele compilate de dvs., citi codul și îl puteți modifica pentru uz propriu. Versiunile modificate le puteți împărți doar privat și gratuit, cu un grup mic de prieteni sau membri ai familiei. Nu puteți publica sau redistribui programul ori versiuni modificate și nu puteți câștiga bani din el. Termenii compleți sunt în [LICENSE](LICENSE).

@@ -181,10 +181,10 @@ class Tagger:
         t0 = time.time()
         stats: dict = {}
         self.live = dict(titles=[a["title"][:140] for a in batch], started=t0, phase="reasoning", stats=stats)
+        def interrupted():
+            return bool(runtime.asking) or self.stop.is_set() or self.paused.is_set()
         ask = dict(system=SYSTEM.format(tree=tree.tree_for_prompt()), user="Acte de clasificat:\n\n" + "\n\n".join(lines),
-                   schema=SCHEMA, num_ctx=NUM_CTX, stats=stats,
-                   cancel=lambda: bool(runtime.asking) or self.stop.is_set() or self.paused.is_set())
-        interrupted = lambda: runtime.asking or self.stop.is_set() or self.paused.is_set()
+                   schema=SCHEMA, num_ctx=NUM_CTX, stats=stats, cancel=interrupted)
         try:
             res, _ = runtime.json_reason(model, num_predict=NUM_PREDICT, **ask)
             label, tokens, gen_s = model, stats.get("eval_count", 0), stats.get("eval_s", 0.0)

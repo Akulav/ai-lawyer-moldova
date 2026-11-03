@@ -101,6 +101,8 @@ class Runtime:
         self.lock = threading.Lock()
         self.cancelled: set[str] = set()
         self.asking = 0  # questions being answered now; background work yields to them
+        self.job = None  # Windows job tying the engine to this process; must stay referenced
+        self.log_file = None
 
     # --- runtime ----------------------------------------------------------------
     def exe(self):
@@ -123,14 +125,15 @@ class Runtime:
                 self._download_runtime()
             self._start()
             con = db.connect()
-            active = db.get_setting(con, "active_model")
-            installed = [m["name"] for m in self.installed()]
-            if not active:
-                active = default_model()
-                db.set_setting(con, "active_model", active)
-            if active not in installed:
+            try:
+                active = db.get_setting(con, "active_model")
+                if not active:
+                    active = default_model()
+                    db.set_setting(con, "active_model", active)
+            finally:
+                con.close()
+            if active not in [m["name"] for m in self.installed()]:
                 self.pull(active)
-            con.close()
         except Exception as e:
             log.exception("bootstrap")
             self.state, self.error = "eroare", str(e)
@@ -163,7 +166,10 @@ class Runtime:
         for p in psutil.process_iter(["exe"]):
             if (p.info["exe"] or "").lower().startswith(own):
                 log.info("stopping own engine process pid %s", p.pid)
-                p.terminate()
+                try:
+                    p.terminate()
+                except psutil.Error:
+                    pass  # it exited meanwhile (a runner ends with its server), or is not ours to stop
 
     def stop_engine(self):
         """Free all memory the AI uses, including the model runner. Indexing and search keep working."""
@@ -177,6 +183,9 @@ class Runtime:
                 self.proc.kill()
             self.proc = None
         self._kill_own_orphans()
+        if self.log_file:
+            self.log_file.close()
+            self.log_file = None
         self.url = None
         self.state = "oprit"
 
@@ -231,8 +240,10 @@ class Runtime:
                    # Measured without them: 2.1 GB, the same tokens/s, and the model loads faster.
                    LLAMA_ARG_LOAD_MODE="none", LLAMA_ARG_CACHE_RAM="0")
         MODELS_DIR.mkdir(parents=True, exist_ok=True)
-        log_file = open(OLLAMA_DIR.parent / "ollama.log", "ab")
-        self.proc = subprocess.Popen([str(self.exe()), "serve"], env=env, stdout=log_file, stderr=log_file,
+        if self.log_file:
+            self.log_file.close()  # each engine restart opened another handle that was never closed
+        self.log_file = open(OLLAMA_DIR.parent / "ollama.log", "ab")
+        self.proc = subprocess.Popen([str(self.exe()), "serve"], env=env, stdout=self.log_file, stderr=self.log_file,
                                      creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         self.job = tie_to_this_process(self.proc)
         for _ in range(120):

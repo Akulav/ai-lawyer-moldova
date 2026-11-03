@@ -5,7 +5,7 @@ from datetime import date
 from . import db, tree
 from .config import today
 from .llm import runtime
-from .text import find_refs, fold, fts_query, tokens
+from .text import find_refs, fts_query
 
 PICK_POOL = 50  # candidates the model chooses from; anything cut here can never reach the answer
 GLOBAL_DEPTH = 200  # fragments taken from all of the legislation before the branch bonus is applied
@@ -330,16 +330,15 @@ def _answer(con, question: str, history: list[dict]):
         for v in con.execute("SELECT * FROM versions WHERE act_id=? AND effective>?", (aid, now)):
             future.append(dict(ref=_ref(a), title=f"Versiune viitoare: {a['title']}", effective=v["effective"], target=_ref(a), id=a["id"], rel="versiune"))
     future.sort(key=lambda f: f["effective"])
-    fut_chunks = [c for c in search_chunks(con, query, list({c["act_id"] for c in chosen} | pinned_ids), 4, future=True)
-                  if con.execute("SELECT effective FROM versions WHERE id=?", (c["version_id"],)).fetchone()["effective"]
-                  and con.execute("SELECT effective FROM versions WHERE id=?", (c["version_id"],)).fetchone()["effective"] > now]
     fut_text = ""
     if future:
         fut_text = "\n\nMODIFICĂRI ANUNȚATE (intră în vigoare în viitor):\n" + "\n".join(
             f"- {f['ref']} ({f['title'][:100]}), de la {f['effective']}, privește {f['target']}" for f in future[:8])
-    for c in fut_chunks:
-        eff = con.execute("SELECT effective FROM versions WHERE id=?", (c["version_id"],)).fetchone()["effective"]
-        fut_text += f"\n\nNEÎN VIGOARE ÎNCĂ (de la {eff}): {c['act_title']}, art. {c['art']}\n{c['text'][:1000]}"
+    for c in search_chunks(con, query, list({c["act_id"] for c in chosen} | pinned_ids), 4, future=True):
+        v = con.execute("SELECT effective FROM versions WHERE id=?", (c["version_id"],)).fetchone()
+        eff = v["effective"] if v else None
+        if eff and eff > now:  # other non-current versions are older texts, not future law
+            fut_text += f"\n\nNEÎN VIGOARE ÎNCĂ (de la {eff}): {c['act_title']}, art. {c['art']}\n{c['text'][:1000]}"
 
     if any(not s["consolidated"] for s in sources):
         warnings.append("Unele surse sunt textul publicat inițial în Monitorul Oficial, fără modificările ulterioare integrate. "
@@ -376,10 +375,3 @@ def _answer(con, question: str, history: list[dict]):
     if not re.search(r"\[S\d+\]", final):
         warnings.append("Răspunsul nu conține trimiteri la surse, deci nu poate fi verificat. Tratați-l cu prudență.")
     yield dict(type="done", answer=final, sources=sources, warnings=warnings, future=future[:8], thinking="".join(thinking))
-
-
-def highlight_terms(text: str, query: str) -> list[str]:
-    return [t for t in tokens(query) if len(t) > 2]
-
-
-__all__ = ["answer", "search_chunks", "amendments_of", "fold", "highlight_terms"]

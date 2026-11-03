@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 240" width="960" height="240" role="img" aria-label="Avocat AI Moldova: asistent juridic AI local">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b3a6f"/>
+      <stop offset="1" stop-color="#072548"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="240" rx="20" fill="url(#bg)"/>
+  <g transform="translate(64 48) scale(4.5)">
+    <path d="M16 6v20M9 26h14M7 10h18M7 10l-3 8a3 3 0 0 0 6 0zM25 10l-3 8a3 3 0 0 0 6 0z" stroke="#e6c563" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif">
+    <text x="252" y="112" font-size="52" font-weight="700" fill="#ffffff">Avocat AI <tspan fill="#e6c563">Moldova</tspan></text>
+    <text x="254" y="152" font-size="22" fill="#c9d6e8">Asistent juridic AI local pentru legislația Republicii Moldova</text>
+    <text x="254" y="186" font-size="17" fill="#8fa6c4">Local legal information assistant · answers with citations · runs on your PC</text>
+  </g>
+</svg>

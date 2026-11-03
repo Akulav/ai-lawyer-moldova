@@ -129,7 +129,10 @@ def refresh_current_version(con, act_id) -> None:
         con.execute("UPDATE acts SET current_version=?, has_text=1, is_consolidated=? WHERE id=?",
                     (row["id"], row["consolidated"], act_id))
     else:
-        has_future = con.execute("SELECT 1 FROM versions WHERE act_id=?", (act_id,)).fetchone()
+        # Only a future text is left. A version with no chunks does not count: it made has_text 1 for an act
+        # with no text, which the health check flagged and its repair, calling this again, could never fix.
+        has_future = con.execute("""SELECT 1 FROM versions v WHERE v.act_id=?
+                                    AND EXISTS(SELECT 1 FROM chunks c WHERE c.version_id=v.id)""", (act_id,)).fetchone()
         con.execute("UPDATE acts SET has_text=? WHERE id=?", (1 if has_future else 0, act_id))
 
 
@@ -437,8 +440,7 @@ class Crawler:
 
     def _discover(self, con, client):
         self.stage = "caut ediții noi"
-        import re
-        page = self._get(client, f"{GAZETTE}/ro").text
+        page =self._get(client, f"{GAZETTE}/ro").text
         ids = [int(x) for x in re.findall(r"/ro/monitor/(\d+)", page)]
         top = max(ids) if ids else 0
         con.executemany("INSERT OR IGNORE INTO issues(id) VALUES(?)", [(i,) for i in range(1, top + 1)])
@@ -610,7 +612,6 @@ def index_status(con) -> dict:
 
 def import_document(con, filename: str, data: bytes, effective: str | None) -> dict:
     """Import a consolidated text, e.g. a PDF the user saved from legis.md with its Pdf button."""
-    import re
     if data[:4] == b"%PDF":
         text, _ = gazette.pdf_text(data)
     else:

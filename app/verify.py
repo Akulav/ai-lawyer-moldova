@@ -54,7 +54,7 @@ def run(con) -> dict:
     listed_ver = con.execute("SELECT value FROM settings WHERE key='listing_version'").fetchone()
     stale = (listed_ver[0] if listed_ver else None) != gazette.LISTING_VERSION
     out.append(_check("listing_version", "Cuprinsurile citite cu versiunea curentă a cititorului", int(stale),
-                      "Dacă nu, indexarea le recitește automat o dată." if stale else "Toate ediții au fost recitite după ultima schimbare."))
+                      "Dacă nu, indexarea le recitește automat o dată." if stale else "Toate edițiile au fost recitite după ultima schimbare."))
 
     # ---- texts ------------------------------------------------------------------------------
     toc = toc_damaged_issues(con)
