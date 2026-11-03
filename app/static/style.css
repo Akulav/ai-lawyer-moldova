@@ -199,6 +199,15 @@ mark { background: var(--gold-soft); color: inherit; border-radius: 2px; padding
 .model-info { flex: 1; min-width: 220px; }
 .model-info b { font-size: 15px; }
 .model-info p { margin: 1px 0 0; color: var(--ink-3); font-size: 13px; }
+.switch { position: relative; display: inline-flex; flex: none; margin-left: auto; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch span:first-of-type { width: 44px; height: 24px; border-radius: 12px; background: var(--line-strong); transition: background .15s; position: relative; }
+.switch span:first-of-type::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.switch input:checked + span { background: var(--blue); }
+.switch input:checked + span::after { transform: translateX(20px); }
+.switch input:focus-visible + span { outline: 2px solid var(--gold); outline-offset: 2px; }
+.switch input:disabled + span { opacity: .5; cursor: not-allowed; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 code { background: var(--surface-2); padding: 0 5px; border-radius: 4px; font-size: .92em; }
 
 .modal { position: fixed; inset: 0; background: rgba(15,20,28,.55); display: grid; place-items: center; z-index: 50; padding: 16px; }

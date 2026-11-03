@@ -62,14 +62,16 @@ The app runs in the system tray, not in a console window.
 
 The AI engine also stops if the program is ended some other way, for example from Task Manager. Running the exe again while the app is running only opens the browser.
 
-### Running from source
+### Using it from other devices
 
-From a copy of this repository, `run.bat` starts the same app in a console window.
-
-To use the app from other devices on your LAN or VPN, start it with `run-lan.bat` instead and allow port 18917 in the firewall. The console lists the addresses to open, such as `http://192.168.1.20:18917`.
+To open the app from a phone, tablet or another computer on your LAN or VPN, turn on **Acces din rețeaua locală sau VPN** on the **Setări** page, then click **Repornește acum**. The page lists the addresses to open, such as `http://192.168.1.20:18917`. If Windows Firewall asks, allow access, or allow the port it shows. Turning the setting off refuses other devices at once.
 
 > [!CAUTION]
 > There is no login. Anyone who can reach that port can use the app and read its conversations, so only do this on networks you trust.
+
+### Running from source
+
+From a copy of this repository, `run.bat` starts the same app in a console window.
 
 ### What it downloads
 
@@ -119,7 +121,6 @@ Optional environment variables, set before running `run.bat`:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `MAL_PORT` | `18917` | First port tried for the web UI |
-| `MAL_HOST` | `127.0.0.1` | Interface to listen on; `run-lan.bat` sets `0.0.0.0` |
 | `MAL_OLLAMA_PORT` | `18971` | First port tried for the bundled Ollama |
 | `MAL_DATA` | `data/` | Location of the database and models |
 

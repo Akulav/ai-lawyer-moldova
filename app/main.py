@@ -1,4 +1,4 @@
-"""HTTP API and static UI. Bound to localhost unless MAL_HOST says otherwise."""
+"""HTTP API and static UI. Bound to localhost unless LAN access is turned on in the settings."""
 import json
 import logging
 import os
@@ -10,12 +10,13 @@ from datetime import datetime
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import db, indexer, rag, sysinfo, tree, verify
-from .config import APP_HOST, APP_NAME, APP_PORT, ROOT, RUNTIME, STATIC, VERSION, port_is_free
+from .config import (APP_NAME, APP_PORT, LAN_HOST, LOCAL_HOST, RESTART_EXIT_CODE, ROOT, RUNTIME, STATIC, VERSION,
+                     port_is_free)
 from .llm import CATALOG, runtime
 from .tagger import tagger, tagger_status
 from .text import fold, fts_query, tokens
@@ -26,6 +27,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 @asynccontextmanager
 async def lifespan(_):
     db.init()
+    _net["lan"] = _lan_setting()
     runtime.bootstrap()
     indexer.crawler.start()
     tagger.start()
@@ -46,17 +48,94 @@ def identity():
 
 
 _server = None  # the running uvicorn server, so /api/quit can stop it
+# Where the server listens (None when it was not started by __main__, as in tests), its port, the LAN setting
+# as last saved, and whether the stop was a restart.
+_net = dict(host=None, port=None, lan=False, restart=False)
+
+
+def _lan_setting() -> bool:
+    con = db.connect()
+    try:
+        return db.get_setting(con, "lan_access") == "1"
+    finally:
+        con.close()
+
+
+def _is_local(request: Request) -> bool:
+    return request.client is not None and request.client.host in ("127.0.0.1", "::1")
+
+
+def _require_local(request: Request, what: str):
+    """Actions that change how the app runs, allowed only from the computer it runs on: with LAN access on,
+    other devices can reach every page."""
+    if not _is_local(request):
+        raise HTTPException(403, f"{what} doar de pe calculatorul pe care rulează programul.")
+
+
+@app.middleware("http")
+async def lan_gate(request: Request, call_next):
+    # Still listening on the network after LAN access was turned off: other devices are refused at once,
+    # and the port closes for good at the next restart.
+    if _net["host"] == LAN_HOST and not _net["lan"] and not _is_local(request):
+        return JSONResponse(dict(detail="Accesul din rețea este dezactivat în setările programului."), status_code=403)
+    return await call_next(request)
 
 
 @app.post("/api/quit")
 def quit_app(request: Request):
     """Stop the server the normal way, so shutdown stops the AI engine and frees its RAM and VRAM. Used by the
-    tray icon's Quit. Only from this computer: with run-lan.bat the page is reachable from the network."""
-    if request.client is None or request.client.host not in ("127.0.0.1", "::1"):
-        raise HTTPException(403, "Programul poate fi oprit doar de pe calculatorul pe care rulează.")
+    tray icon's Quit."""
+    _require_local(request, "Programul poate fi oprit")
     if _server is not None:
         _server.should_exit = True
     return dict(ok=True)
+
+
+def _can_restart() -> bool:
+    """Only a supervisor starts the app again after it exits: the tray launcher, or run.bat's loop."""
+    return os.environ.get("AVOCAT_LAUNCHER") == "1" or os.environ.get("AVOCAT_RESTART") == "1"
+
+
+@app.post("/api/restart")
+def restart_app(request: Request):
+    _require_local(request, "Programul poate fi repornit")
+    if _server is None or not _can_restart():
+        raise HTTPException(409, "Programul nu se poate reporni singur aici. Închideți-l și porniți-l din nou.")
+    _net["restart"] = True
+    _server.should_exit = True
+    return dict(ok=True)
+
+
+# ---- settings --------------------------------------------------------------------------
+def _settings(request: Request) -> dict:
+    listening = _net["host"] == LAN_HOST
+    port = _net["port"]
+    return dict(
+        lan=_net["lan"], listening=listening, port=port, can_change=_is_local(request), can_restart=_can_restart(),
+        # LAN on but still bound to 127.0.0.1: takes effect after a restart. LAN off takes effect at once.
+        restart_needed=_net["lan"] and _net["host"] == LOCAL_HOST,
+        addresses=[f"http://{ip}:{port}" for ip in _lan_addresses()] if listening and _net["lan"] else [])
+
+
+@app.get("/api/settings")
+def get_settings(request: Request):
+    return _settings(request)
+
+
+class LanIn(BaseModel):
+    enabled: bool
+
+
+@app.post("/api/settings/lan")
+def set_lan(body: LanIn, request: Request):
+    _require_local(request, "Accesul din rețea poate fi schimbat")
+    con = db.connect()
+    try:
+        db.set_setting(con, "lan_access", int(body.enabled))
+    finally:
+        con.close()
+    _net["lan"] = body.enabled
+    return _settings(request)
 
 
 @app.get("/api/status")
@@ -546,8 +625,12 @@ def _choose_port() -> tuple[int, bool]:
 
 if __name__ == "__main__":
     import uvicorn
-    # Started by AvocatAI.exe: the tray launcher opens the browser itself, once the server answers.
-    launched = os.environ.get("AVOCAT_LAUNCHER") == "1"
+    # Started by AvocatAI.exe: the tray launcher opens the browser itself, once the server answers. After a
+    # restart the page is already open and reloads itself.
+    launched = os.environ.get("AVOCAT_LAUNCHER") == "1" or os.environ.get("AVOCAT_RESTARTED") == "1"
+    db.init()
+    lan = _lan_setting()
+    host = LAN_HOST if lan else LOCAL_HOST
     port, running = _choose_port()
     url = f"http://127.0.0.1:{port}"
     # The launcher reads the port from here, since the preferred one may be taken.
@@ -557,12 +640,15 @@ if __name__ == "__main__":
             webbrowser.open(url)
         raise SystemExit(0)
     print(f"  Adresa: {url}")
-    if APP_HOST != "127.0.0.1":
+    if lan:
         for ip in _lan_addresses():
             print(f"  Din rețea: http://{ip}:{port}")
         if port != APP_PORT:
             print(f"  Atenție: portul {APP_PORT} era ocupat, deci se folosește {port}. Deschideți-l în firewall.")
     if not launched:
         threading.Timer(1.5, lambda: webbrowser.open(url)).start()
-    _server = uvicorn.Server(uvicorn.Config(app, host=APP_HOST, port=port, log_level="warning"))
+    _net.update(host=host, port=port, lan=lan)
+    _server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning"))
     _server.run()
+    if _net["restart"]:
+        raise SystemExit(RESTART_EXIT_CODE)

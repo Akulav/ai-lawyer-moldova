@@ -57,7 +57,8 @@ Tests use a temporary `MAL_DATA` folder (`tests/conftest.py`) and need no networ
 - Never attach to another Ollama: only a process this app started, from its own binary, on a port `port_is_free` verified. Process cleanup matches our own exe path only.
 - Never invent law: answers come only from retrieved sources. Don't weaken prompt rules, citation checks, or disclaimers. "Fără abrogare detectată" deliberately avoids "în vigoare".
 - Don't bypass access controls on data sources (no impersonation or challenge solvers); keep the crawler's User-Agent and delays.
-- Server binds `127.0.0.1` by default; `/api/quit` only accepts local clients.
+- Server binds `127.0.0.1` unless the `lan_access` setting is on (Setări page), then `0.0.0.0` from the next start. There is no separate LAN script. Changing the setting, `/api/restart` and `/api/quit` only accept local clients.
+- Exit code 3 (`RESTART_EXIT_CODE`) means "start me again": the launcher's watch loop and `run.bat`'s loop rely on it.
 
 ## Releases
 

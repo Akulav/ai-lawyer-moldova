@@ -79,7 +79,7 @@ function renderSetup() { const el = $("#setupSlot"); if (el) el.innerHTML = setu
 
 /* ---- router ---- */
 function route() { const [name, arg] = location.hash.slice(1).split("/"); return { name: name || "chat", arg }; }
-const VIEWS = { chat: viewChat, search: viewSearch, tree: viewTree, act: viewAct, index: viewIndex, problems: viewProblems, models: viewModels };
+const VIEWS = { chat: viewChat, search: viewSearch, tree: viewTree, act: viewAct, index: viewIndex, problems: viewProblems, models: viewModels, settings: viewSettings };
 /* ---- phone menu: the rail slides in over the page ---- */
 function setMenu(open) {
   $("#rail").classList.toggle("open", open);
@@ -573,6 +573,52 @@ function confirmDelete(name) {
   m.innerHTML = `<div class="dialog" role="dialog" aria-modal="true"><h2>Ștergeți modelul?</h2><p><b>${esc(name)}</b> va fi șters de pe disc. Îl puteți descărca din nou oricând.</p><div class="dialog-foot"><button class="btn" id="no">Renunță</button><button class="btn primary" id="yes">Șterge</button></div></div>`;
   m.hidden = false; $("#no").onclick = () => m.hidden = true;
   $("#yes").onclick = async () => { m.hidden = true; try { await api(`/api/models/${encodeURIComponent(name)}`, { method: "DELETE" }); renderModels(); pollStatus(); } catch (e) { toast(e.message); } };
+}
+
+/* ---- settings ---- */
+function viewSettings() {
+  main.innerHTML = `<div class="page"><h1 class="page-title">Setări</h1>
+    <p class="page-sub">Cum rulează programul pe acest calculator.</p>
+    <div id="sLive"><div class="empty">Se încarcă…</div></div></div>`;
+  renderSettings();
+}
+async function renderSettings() {
+  const box = $("#sLive"); if (!box) return;
+  let s; try { s = await api("/api/settings"); } catch (e) { box.innerHTML = `<div class="notice err">${esc(e.message)}</div>`; return; }
+  let state;
+  if (s.lan && s.listening) state = `<div class="notice future"><b>Accesibil din rețea.</b> Deschideți pe celălalt dispozitiv:<ul>${s.addresses.map(a => `<li><code>${esc(a)}</code></li>`).join("") || "<li>nicio adresă de rețea găsită</li>"}</ul>
+      Dacă pagina nu se deschide, permiteți portul <b>${s.port}</b> în Windows Firewall.</div>`;
+  else if (s.restart_needed) state = `<div class="notice warn"><b>Se aplică după repornire.</b> Repornirea oprește pentru scurt timp și motorul AI.
+      ${s.can_restart ? `<div class="row-actions" style="margin-top:8px"><button class="btn primary" id="restartBtn">Repornește acum</button></div>` : "<br>Închideți programul și porniți-l din nou."}</div>`;
+  else if (s.listening) state = `<div class="notice future">Celelalte dispozitive sunt refuzate de acum. Portul se închide complet la următoarea pornire a programului.</div>`;
+  else state = `<p class="lawtext-info" style="margin:6px 0 0">Acum programul se deschide doar de pe acest calculator.</p>`;
+  box.innerHTML = `<div class="sec-label">Rețea</div>
+    <div class="model"><div class="model-info"><b>Acces din rețeaua locală sau VPN</b>
+      <p>Permite deschiderea programului de pe telefon, tabletă sau alt calculator din aceeași rețea.</p></div>
+      <label class="switch"><input type="checkbox" id="lanToggle" ${s.lan ? "checked" : ""} ${s.can_change ? "" : "disabled"}><span></span><span class="sr">Acces din rețea</span></label></div>
+    ${s.can_change ? "" : `<div class="notice warn">Setarea se poate schimba doar de pe calculatorul pe care rulează programul.</div>`}
+    ${state}
+    ${s.lan ? `<div class="notice err"><b>Nu există autentificare.</b> Oricine ajunge la acest port poate folosi programul și vedea discuțiile. Activați accesul doar în rețele de încredere.</div>` : ""}`;
+  const t = $("#lanToggle");
+  t.onchange = async () => { t.disabled = true; try { await post("/api/settings/lan", { enabled: t.checked }); } catch (e) { toast(e.message); } renderSettings(); };
+  const r = $("#restartBtn");
+  if (r) r.onclick = async () => {
+    r.disabled = true;
+    try { await post("/api/restart"); } catch (e) { toast(e.message); r.disabled = false; return; }
+    box.insertAdjacentHTML("afterbegin", `<div class="notice future">Repornesc programul… Pagina se reîncarcă singură.</div>`);
+    waitForRestart();
+  };
+}
+async function waitForRestart() {
+  // Reload once the server has gone down and answers again; if it never seemed to go down, reload anyway.
+  let down = false; const until = Date.now() + 180000, giveUp = Date.now() + 30000;
+  while (Date.now() < until) {
+    await new Promise(r => setTimeout(r, 1500));
+    const up = await fetch("/api/identity", { cache: "no-store" }).then(r => r.ok, () => false);
+    if (!up) down = true;
+    else if (down || Date.now() > giveUp) { location.reload(); return; }
+  }
+  toast("Programul nu a repornit. Deschideți-l din pictograma din bara de sistem.");
 }
 
 /* ---- boot ---- */

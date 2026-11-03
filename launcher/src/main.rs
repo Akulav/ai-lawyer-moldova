@@ -7,7 +7,8 @@
 //! 3. extracts the app's sources embedded in the exe next to it, unless the folder is a git checkout;
 //! 4. downloads uv, which brings Python and the dependencies (the app then fetches Ollama and the model);
 //! 5. starts the server hidden, logging to .runtime/app.log, and opens the browser once it answers;
-//! 6. on Quit asks the server to stop, so it shuts the AI engine down cleanly, then exits.
+//! 6. on Quit asks the server to stop, so it shuts the AI engine down cleanly, then exits;
+//! 7. starts the server again when it exits asking for a restart (after a settings change).
 #![windows_subsystem = "windows"]
 
 mod setup;
@@ -25,6 +26,8 @@ use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, 
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 const TITLE: &str = "Avocat AI Moldova";
+/// The server exits with this code to be started again, e.g. after the LAN setting changed (app/config.py).
+const RESTART_EXIT_CODE: i32 = 3;
 
 /// Messages from the worker thread and the tray to the event loop, which owns the tray icon.
 #[derive(Debug)]
@@ -93,7 +96,7 @@ fn run(root: PathBuf) -> anyhow::Result<()> {
     let quit_item = MenuItem::new("Ieșire (oprește și motorul AI)", true, None);
     let mut tray: Option<TrayIcon> = None;
 
-    start_worker(app.clone(), proxy.clone());
+    start_worker(app.clone(), proxy.clone(), true);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -150,7 +153,7 @@ fn run(root: PathBuf) -> anyhow::Result<()> {
                     let (a, p) = (app.clone(), proxy.clone());
                     std::thread::spawn(move || {
                         stop_server(&a, &p);
-                        start_worker(a, p);
+                        start_worker(a, p, true);
                     });
                 } else if e.id == quit_item.id() {
                     quit_item.set_enabled(false);
@@ -177,10 +180,11 @@ fn status(proxy: &EventLoopProxy<UserEvent>, text: &str, ready: bool) {
     let _ = proxy.send_event(UserEvent::Status(text.to_string(), ready));
 }
 
-/// Set up and start the server on a worker thread, then watch it.
-fn start_worker(app: Arc<App>, proxy: EventLoopProxy<UserEvent>) {
+/// Set up and start the server on a worker thread, then watch it. `open_browser` is false when the server
+/// restarted itself, because its page is already open and reloads on its own.
+fn start_worker(app: Arc<App>, proxy: EventLoopProxy<UserEvent>, open_browser: bool) {
     std::thread::spawn(move || {
-        if let Err(e) = start_server(&app, &proxy) {
+        if let Err(e) = start_server(&app, &proxy, open_browser) {
             status(&proxy, "Eroare la pornire, vedeți jurnalul", false);
             if !app.quitting.load(std::sync::atomic::Ordering::SeqCst) {
                 win::message_box(TITLE, &format!("Programul nu a putut porni:\n\n{e:#}\n\nJurnal: {}",
@@ -195,8 +199,15 @@ fn start_worker(app: Arc<App>, proxy: EventLoopProxy<UserEvent>) {
             let Some(child) = guard.as_mut() else { return };
             if let Ok(Some(code)) = child.try_wait() {
                 *guard = None;
+                drop(guard);
                 *app.port.lock().unwrap() = None;
-                if !app.quitting.load(std::sync::atomic::Ordering::SeqCst) {
+                if app.quitting.load(std::sync::atomic::Ordering::SeqCst) {
+                    return;
+                }
+                if code.code() == Some(RESTART_EXIT_CODE) {
+                    status(&proxy, "Repornesc…", false);
+                    start_worker(app.clone(), proxy.clone(), false);
+                } else {
                     status(&proxy, &format!("S-a oprit (cod {:?}); folosiți Repornește", code.code()), false);
                 }
                 return;
@@ -205,7 +216,7 @@ fn start_worker(app: Arc<App>, proxy: EventLoopProxy<UserEvent>) {
     });
 }
 
-fn start_server(app: &App, proxy: &EventLoopProxy<UserEvent>) -> anyhow::Result<()> {
+fn start_server(app: &App, proxy: &EventLoopProxy<UserEvent>, open_browser: bool) -> anyhow::Result<()> {
     let root = &app.root;
     status(proxy, "Pregătesc fișierele programului…", false);
     setup::ensure_sources(root)?;
@@ -225,7 +236,9 @@ fn start_server(app: &App, proxy: &EventLoopProxy<UserEvent>) -> anyhow::Result<
             if setup::answers(port) {
                 *app.port.lock().unwrap() = Some(port);
                 status(proxy, &format!("Rulează pe http://127.0.0.1:{port}"), true);
-                win::open(&format!("http://127.0.0.1:{port}"));
+                if open_browser {
+                    win::open(&format!("http://127.0.0.1:{port}"));
+                }
                 return Ok(());
             }
         }

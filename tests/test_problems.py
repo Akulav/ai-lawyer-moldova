@@ -137,9 +137,29 @@ def test_split_skips_old_toc_without_dot_leaders():
 
 
 def test_quit_only_from_this_computer():
-    # The test client is not 127.0.0.1, like a device on the LAN under run-lan.bat: it must not stop the app.
+    # The test client is not 127.0.0.1, like a device on the LAN with LAN access on: it must not stop the app.
     assert client.post("/api/quit").status_code == 403
+    assert client.post("/api/restart").status_code == 403
     assert "version" in client.get("/api/identity").json()
+
+
+def test_lan_setting_only_from_this_computer():
+    seed().close()
+    s = client.get("/api/settings").json()
+    assert s["can_change"] is False and s["listening"] is False
+    assert client.post("/api/settings/lan", json=dict(enabled=True)).status_code == 403
+
+
+def test_lan_off_refuses_other_devices_at_once():
+    from app import main
+    # Bound to the network, then LAN access turned off: the test client counts as another device.
+    main._net.update(host=main.LAN_HOST, lan=False)
+    try:
+        assert client.get("/api/settings").status_code == 403
+        main._net["lan"] = True
+        assert client.get("/api/settings").status_code == 200
+    finally:
+        main._net.update(host=None, lan=False)
 
 
 def statuses(con):

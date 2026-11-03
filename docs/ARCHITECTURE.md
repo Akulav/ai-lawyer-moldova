@@ -90,7 +90,8 @@ Each request gets 5 tries with growing waits for 429 and 5xx responses and netwo
 - **Never touch another Ollama.** The app only talks to a process it started, from its own binary, on a port that nothing else answers on. Cleanup of leftover processes matches its own executable path only.
 - **Check that a port is really free.** On Windows, binding `127.0.0.1` can succeed while another program listens on `0.0.0.0`, silently shadowing it. `port_is_free` tests both.
 - **False repeals are the costly error.** A wrongly repealed act disappears from answers, so detection is strict. See [Data sources](DATA_SOURCES.md#how-status-is-derived).
-- **Local access by default.** The server binds to `127.0.0.1` and has no authentication. `run-lan.bat` sets `MAL_HOST=0.0.0.0` to serve other devices on a LAN or VPN; anyone who reaches the port can then read conversations, import documents and manage models, so use it only on trusted networks. Ollama always stays on `127.0.0.1`.
+- **Local access by default.** The server binds to `127.0.0.1` and has no authentication. The `lan_access` setting (Setări page) makes it bind to `0.0.0.0` at the next start, to serve other devices on a LAN or VPN; anyone who reaches the port can then read conversations, import documents and manage models, so use it only on trusted networks. Turning it off takes effect at once: a middleware refuses non-local clients until the restart closes the port. The setting, restart and quit can only be changed from `127.0.0.1`. Ollama always stays on `127.0.0.1`.
+- **Restart by exit code.** `POST /api/restart` stops the server cleanly and exits with code 3; the tray launcher and `run.bat` start it again. A plain `python -m app.main` cannot restart itself, and the UI says so.
 
 ## API
 
@@ -98,7 +99,8 @@ Each request gets 5 tries with growing waits for 429 and 5xx responses and netwo
 | --- | --- |
 | `GET /api/status`, `GET /api/identity` | App state; instance identity (the launcher checks `app`) |
 | `POST /api/disclaimer` | Record that the disclaimer was accepted |
-| `POST /api/quit` | Clean shutdown, used by the tray's **Ieșire**; only from 127.0.0.1 |
+| `POST /api/quit`, `POST /api/restart` | Clean shutdown (the tray's **Ieșire**) or restart (exit code 3); only from 127.0.0.1 |
+| `GET /api/settings`, `POST /api/settings/lan` | LAN access setting and where the server listens; changes only from 127.0.0.1 |
 | `POST /api/chat` | Streaming answer (Server-Sent Events) |
 | `GET`, `DELETE /api/conversations...` | Chat history |
 | `GET /api/search`, `GET /api/acts/{id}`, `GET /api/tree` | Search and browsing |

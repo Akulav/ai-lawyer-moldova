@@ -8,6 +8,7 @@ echo.
 echo   Avocat AI Moldova
 echo   Interfata se deschide singura in browser.
 echo   Lasati aceasta fereastra deschisa. Inchideti-o pentru a opri programul.
+echo   Accesul din retea se activeaza din pagina Setari.
 echo.
 
 set "UV=uv"
@@ -23,7 +24,16 @@ if errorlevel 1 (
 )
 
 set "UV_PYTHON_INSTALL_DIR=%~dp0.runtime\python"
+rem The app exits with code 3 to be started again, e.g. after LAN access is turned on in Setari.
+set "AVOCAT_RESTART=1"
+:start
 "%UV%" run --quiet --no-dev --python 3.12 python -m app.main
+if errorlevel 4 goto :fail
+if errorlevel 3 (
+    echo   Repornesc...
+    set "AVOCAT_RESTARTED=1"
+    goto :start
+)
 if errorlevel 1 goto :fail
 exit /b 0
 

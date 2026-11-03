@@ -41,7 +41,7 @@ Motorul AI se oprește și dacă programul este închis altfel, de exemplu din T
 
 Dintr-o copie a proiectului, `run.bat` pornește același program într-o fereastră de consolă. La prima pornire se descarcă motorul AI (circa 1,6 GB) și un model potrivit memoriei RAM (între 5,2 și 17,7 GB), iar interfața se deschide la <http://127.0.0.1:18917>. Dacă portul este ocupat, programul folosește următorul port liber.
 
-Pentru a folosi programul de pe alte dispozitive din rețeaua locală sau prin VPN, porniți-l cu `run-lan.bat` și permiteți portul 18917 în firewall. Fereastra programului afișează adresele de deschis, de exemplu `http://192.168.1.20:18917`.
+Pentru a folosi programul de pe telefon, tabletă sau alt calculator din rețeaua locală ori prin VPN, activați **Acces din rețeaua locală sau VPN** în pagina **Setări** și apăsați **Repornește acum**. Pagina afișează adresele de deschis, de exemplu `http://192.168.1.20:18917`. Dacă Windows Firewall întreabă, permiteți accesul sau permiteți portul afișat. Dezactivarea setării refuză imediat celelalte dispozitive.
 
 > [!CAUTION]
 > Nu există autentificare: oricine ajunge la acest port poate folosi programul și vedea conversațiile, deci faceți asta doar în rețele de încredere.
