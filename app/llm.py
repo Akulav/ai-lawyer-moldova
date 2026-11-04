@@ -378,22 +378,53 @@ class Runtime:
         except ValueError:
             return None, "".join(thinking)
 
+    CHAT_CTX, ANSWER_ROOM, MAX_THINK = 16384, 3500, 9000
+    NOTES = ("\n\nNOTELE TALE DE ANALIZĂ (raționamentul tău de până acum asupra acestei întrebări):\n{notes}\n\n"
+             "Pe baza SURSELOR de mai sus și a acestor note, formulează acum răspunsul final, cu trimiteri [S#].")
+
     def stream_chat(self, model: str, messages: list[dict], think: bool = True,
-                    think_budget: int = 3500) -> Iterator[tuple[str, str]]:
-        """Yield ('thinking'|'token'|'retry', text). Handles both native thinking and inline <think> tags.
+                    think_budget: int | None = None) -> Iterator[tuple[str, str]]:
+        """Yield ('budget'|'thinking'|'token'|'retry', text). Handles both native thinking and inline <think> tags.
 
         A reasoning model can spend all of num_predict thinking and never answer (Qwen3.8-27B reasoned for the full
-        6000 tokens, ~3 min, and returned an empty reply). So past `think_budget` reasoning tokens with no answer yet,
-        or at the end with none, we drop the stream, yield ('retry', '') and ask again with thinking off."""
+        6000 tokens, ~3 min, and returned an empty reply). So the reasoning gets a budget, as much as the context
+        leaves after the prompt and room for the answer (yielded as 'budget' for the UI). Past it, or at the end with
+        no answer, we stop, yield ('retry', '') and ask for the answer with thinking off, handing over the reasoning
+        so far as notes so the work is not lost. think=False must be sent explicitly: left out, Qwen3.8 reasons by
+        default, which is how the first version of this fallback reasoned for another 6000 tokens."""
+        est = sum(len(m["content"]) for m in messages) // 3  # Romanian legal text runs ~3 characters per token
+        room = self.CHAT_CTX - est - self.ANSWER_ROOM
+        budget = think_budget or max(1500, min(self.MAX_THINK, room))
+        if not think:
+            yield from self._stream(model, messages, False, self.ANSWER_ROOM)
+            return
+        yield "budget", str(budget)
+        thought, said = [], False
+        gen = self._stream(model, messages, True, budget + self.ANSWER_ROOM)
+        for kind, text in gen:
+            if kind == "thinking":
+                thought.append(text)
+            elif text.strip():
+                said = True
+            yield kind, text
+            if not said and len(thought) >= budget:
+                break
+        gen.close()  # closes the connection, which stops the generation in Ollama
+        if not said and thought:
+            notes = "".join(thought)[-max(room, 1000) * 3:]  # the tail holds the conclusions; keep it within context
+            last = dict(messages[-1], content=messages[-1]["content"] + self.NOTES.format(notes=notes))
+            yield "retry", ""
+            yield from self._stream(model, messages[:-1] + [last], False, self.ANSWER_ROOM)
+
+    def _stream(self, model: str, messages: list[dict], think: bool | None, num_predict: int) -> Iterator[tuple[str, str]]:
         body = dict(model=model, stream=True, messages=messages, keep_alive=self._keep(model),
-                    options=dict(temperature=0.2, num_ctx=16384, num_predict=6000))  # reasoning counts toward this
-        if think:
-            body["think"] = True
-        in_tag, thought, said = False, 0, False
+                    **({} if think is None else dict(think=think)),
+                    options=dict(temperature=0.2, num_ctx=self.CHAT_CTX, num_predict=num_predict))  # reasoning counts
+        in_tag = False
         with httpx.stream("POST", f"{self.url}/api/chat", json=body, timeout=None) as r:
-            if r.status_code == 400 and think:
+            if r.status_code == 400 and think is not None:  # model without a thinking mode
                 r.read()
-                yield from self.stream_chat(model, messages, think=False)
+                yield from self._stream(model, messages, None, num_predict)
                 return
             if r.status_code != 200:
                 raise RuntimeError(f"Modelul a returnat eroarea {r.status_code}: {r.read().decode()[:300]}")
@@ -405,28 +436,17 @@ class Runtime:
                     raise RuntimeError(ev["error"])
                 msg = ev.get("message", {})
                 if msg.get("thinking"):
-                    thought += 1  # one streamed event is one token
-                    yield "thinking", msg["thinking"]
+                    yield "thinking", msg["thinking"]  # one streamed event is one token
                 text = msg.get("content") or ""
                 if "<think>" in text:
                     in_tag, text = True, text.replace("<think>", "")
                 if "</think>" in text:
                     before, text = text.split("</think>", 1)
                     if before:
-                        thought += 1
                         yield "thinking", before
                     in_tag = False
                 if text:
-                    if in_tag:
-                        thought += 1
-                    elif text.strip() or said:
-                        said = True
                     yield ("thinking" if in_tag else "token"), text
-                if think and not said and thought > think_budget:
-                    break  # leaving the with-block closes the connection, which stops the generation in Ollama
-        if think and not said and thought:
-            yield "retry", ""
-            yield from self.stream_chat(model, messages, think=False)
 
 
 runtime = Runtime()

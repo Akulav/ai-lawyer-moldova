@@ -171,7 +171,9 @@ async function loadConversation(id) {
 }
 function aiBlock() {
   const d = document.createElement("div"); d.className = "msg-ai";
-  d.innerHTML = `<div class="trace" hidden></div><details class="think" hidden><summary>Raționamentul modelului</summary><pre></pre></details>
+  d.innerHTML = `<div class="trace" hidden></div>
+    <div class="gen" hidden><div class="gen-row" data-k="think" hidden><span>Raționament</span><div class="bar"><i></i></div><small></small></div>
+      <div class="gen-row" data-k="answer" hidden><span>Răspuns</span><div class="bar"><i></i></div><small></small></div></div><details class="think" hidden><summary>Raționamentul modelului</summary><pre></pre></details>
     <div class="answer"></div><div class="notes"></div><div class="srcs"></div>`;
   return d;
 }
@@ -224,6 +226,25 @@ async function ask(question) {
   const trace = $(".trace", el), ans = $(".answer", el), thinkBox = $(".think", el);
   let text = "", thinking = "", meta = {}, pending = false;
   const paint = () => { pending = false; ans.innerHTML = md(text); ans.classList.add("cursor"); stick(); };
+  // Progress: one streamed event is one token. Reasoning has a real budget from the server; the answer has no known
+  // length, so its bar eases towards full (about two thirds at 900 tokens) and fills on completion.
+  const gen = $(".gen", el), prog = { think: 0, answer: 0, budget: 0, thinkDone: false, t0: 0, t: 0 };
+  const row = k => $(`[data-k="${k}"]`, gen);
+  const drawProg = () => {
+    gen.hidden = false;
+    const secs = Math.round((Date.now() - prog.t0) / 1000);
+    if (prog.think || prog.budget) {
+      const r = row("think"); r.hidden = false;
+      $("i", r).style.width = (prog.thinkDone ? 100 : Math.min(100, 100 * prog.think / (prog.budget || 1))) + "%";
+      $("small", r).textContent = `${fmtNum(prog.think)}${prog.budget ? " / " + fmtNum(prog.budget) : ""} tokeni${prog.thinkDone ? " · încheiat" : ` · ${secs} s`}`;
+    }
+    if (prog.answer) {
+      const r = row("answer"); r.hidden = false;
+      $("i", r).style.width = (100 * (1 - Math.exp(-prog.answer / 900))) + "%";
+      $("small", r).textContent = `${fmtNum(prog.answer)} tokeni · ${secs} s`;
+    }
+  };
+  const tickProg = () => { const n = Date.now(); if (n - prog.t > 250) { prog.t = n; drawProg(); } };
   try {
     const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, conversation_id: conversationId }) });
     if (!r.ok || !r.body) throw new Error("Serverul nu a răspuns.");
@@ -239,8 +260,12 @@ async function ask(question) {
         if (ev.type === "conversation") {
           if (conversationId !== ev.id) { conversationId = ev.id; history.replaceState(null, "", `#chat/${ev.id}`); loadConvs(); }
         } else if (ev.type === "step") renderStep(trace, ev);
-        else if (ev.type === "thinking") { thinkBox.hidden = false; thinking += ev.text; $("pre", thinkBox).textContent = thinking; const p = $("pre", thinkBox); p.scrollTop = p.scrollHeight; }
-        else if (ev.type === "token") { text += ev.text; if (!pending) { pending = true; requestAnimationFrame(paint); } }
+        else if (ev.type === "budget") { prog.budget = ev.thinking; prog.t0 = Date.now(); drawProg(); }
+        else if (ev.type === "retry") { text = ""; prog.thinkDone = true; prog.answer = 0; prog.t0 = Date.now(); drawProg(); }
+        else if (ev.type === "thinking") { thinkBox.hidden = false; thinking += ev.text; $("pre", thinkBox).textContent = thinking; const p = $("pre", thinkBox); p.scrollTop = p.scrollHeight;
+          if (!prog.t0) prog.t0 = Date.now(); prog.think++; tickProg(); }
+        else if (ev.type === "token") { text += ev.text; if (!pending) { pending = true; requestAnimationFrame(paint); }
+          if (!prog.t0) prog.t0 = Date.now(); if (!prog.thinkDone && prog.think) { prog.thinkDone = true; prog.t0 = Date.now(); } prog.answer++; tickProg(); }
         else if (ev.type === "sources") meta.sources = ev.items;
         else if (ev.type === "warnings") meta.warnings = ev.items;
         else if (ev.type === "future") meta.future = ev.items;
@@ -250,7 +275,7 @@ async function ask(question) {
     }
     if (meta.sources || meta.warnings) { ans.innerHTML = md(text); finishBlock(el, meta); }
   } catch (e) { $(".notes", el).insertAdjacentHTML("beforeend", `<div class="notice err">${esc(e.message)}</div>`); }
-  ans.innerHTML = md(text); ans.classList.remove("cursor");
+  ans.innerHTML = md(text); ans.classList.remove("cursor"); gen.remove();
   busy = false; send.disabled = !STATUS?.llm.ready; q.focus(); stick();
 }
 async function loadConvs() {

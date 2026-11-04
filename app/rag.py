@@ -359,10 +359,13 @@ def _answer(con, question: str, history: list[dict]):
             if kind == "thinking":
                 thinking.append(text)
                 yield dict(type="thinking", text=text)
-            elif kind == "retry":  # reasoning ran too long without an answer; the model now answers directly
+            elif kind == "budget":
+                yield dict(type="budget", thinking=int(text))
+            elif kind == "retry":  # reasoning used its budget; the answer pass builds on it
                 full.clear()
                 yield dict(type="step", id="answer", label="Formulez răspunsul", status="active",
-                           note="Raționamentul a durat prea mult; modelul răspunde acum direct, fără raționament.")
+                           note="Raționamentul a atins limita; formulez răspunsul pe baza lui.")
+                yield dict(type="retry")
             else:
                 if not started:
                     yield dict(type="step", id="answer", label="Răspuns", status="done")
