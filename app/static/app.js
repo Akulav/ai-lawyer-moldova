@@ -32,11 +32,14 @@ const DISCLAIMER = `
   <p>Textul oficial rămâne cel publicat în <a href="https://monitorul.gov.md" target="_blank" rel="noopener">Monitorul Oficial</a> și în <a href="https://www.legis.md" target="_blank" rel="noopener">Registrul de stat al actelor juridice</a>.</p>`;
 function showDisclaimer(first) {
   const m = $("#modal");
-  m.innerHTML = `<div class="dialog" role="dialog" aria-modal="true">${DISCLAIMER}<div class="dialog-foot"><button class="btn primary" id="okD">${first ? "Am înțeles și accept" : "Închide"}</button></div></div>`;
+  m.innerHTML = `<div class="dialog" role="dialog" aria-modal="true">${DISCLAIMER}<div class="dialog-foot"><span class="dialog-credit">Avocat AI Moldova · realizat de <b>Akulav</b></span><button class="btn primary" id="okD">${first ? "Am înțeles și accept" : "Închide"}</button></div></div>`;
   m.hidden = false;
   $("#okD").onclick = async () => { m.hidden = true; if (first) await post("/api/disclaimer"); };
 }
 $("#aboutBtn").onclick = () => showDisclaimer(false);
+// The exe passes its version (AVOCAT_VERSION); from source there is none, so nothing is shown.
+fetch("/api/identity").then(r => r.json()).then(i => { if (i.version) $("#appVersion").textContent = ` · v${i.version}`; }, () => {});
+const LOGO = (px) => `<svg viewBox="0 0 32 32" width="${px}" height="${px}" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0b3a6f"/><path d="M16 6v20M9 26h14M7 10h18M7 10l-3 8a3 3 0 0 0 6 0zM25 10l-3 8a3 3 0 0 0 6 0z" stroke="#e6c563" stroke-width="1.8" fill="none" stroke-linejoin="round"/></svg>`;
 
 /* ---- status ---- */
 let STATUS = null;
@@ -150,8 +153,10 @@ function viewChat(arg) {
   renderSetup(); loadConvs(); q.focus();
 }
 function renderHero() {
-  $("#thread").innerHTML = `<div class="hero"><h1>Ce vă spune legea?</h1>
+  $("#thread").innerHTML = `<div class="hero"><div class="hero-mark">${LOGO(56)}</div>
+    <div class="eyebrow">Avocat AI Moldova</div><h1>Ce vă spune legea?</h1>
     <p>Întrebați în cuvinte simple. Asistentul identifică ramura de drept, citește doar actele potrivite și răspunde cu trimiteri la lege.</p>
+    <div class="trust"><span>Rulează local, privat</span><span>Trimiteri la articolele de lege</span><span>Surse: Monitorul Oficial</span></div>
     <div id="setupSlot"></div>
     <div class="examples">${EXAMPLES.map(([t, q]) => `<button class="example" data-q="${esc(q)}"><b>${t}</b>${esc(q)}</button>`).join("")}</div></div>`;
   document.querySelectorAll(".example").forEach(b => b.onclick = () => { $("#q").value = b.dataset.q; $("#q").focus(); $("#q").oninput(); });
