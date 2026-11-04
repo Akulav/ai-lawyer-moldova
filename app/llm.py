@@ -378,13 +378,18 @@ class Runtime:
         except ValueError:
             return None, "".join(thinking)
 
-    def stream_chat(self, model: str, messages: list[dict], think: bool = True) -> Iterator[tuple[str, str]]:
-        """Yield ('thinking'|'token', text). Handles both native thinking and inline <think> tags."""
+    def stream_chat(self, model: str, messages: list[dict], think: bool = True,
+                    think_budget: int = 3500) -> Iterator[tuple[str, str]]:
+        """Yield ('thinking'|'token'|'retry', text). Handles both native thinking and inline <think> tags.
+
+        A reasoning model can spend all of num_predict thinking and never answer (Qwen3.8-27B reasoned for the full
+        6000 tokens, ~3 min, and returned an empty reply). So past `think_budget` reasoning tokens with no answer yet,
+        or at the end with none, we drop the stream, yield ('retry', '') and ask again with thinking off."""
         body = dict(model=model, stream=True, messages=messages, keep_alive=self._keep(model),
                     options=dict(temperature=0.2, num_ctx=16384, num_predict=6000))  # reasoning counts toward this
         if think:
             body["think"] = True
-        in_tag = False
+        in_tag, thought, said = False, 0, False
         with httpx.stream("POST", f"{self.url}/api/chat", json=body, timeout=None) as r:
             if r.status_code == 400 and think:
                 r.read()
@@ -400,6 +405,7 @@ class Runtime:
                     raise RuntimeError(ev["error"])
                 msg = ev.get("message", {})
                 if msg.get("thinking"):
+                    thought += 1  # one streamed event is one token
                     yield "thinking", msg["thinking"]
                 text = msg.get("content") or ""
                 if "<think>" in text:
@@ -407,10 +413,20 @@ class Runtime:
                 if "</think>" in text:
                     before, text = text.split("</think>", 1)
                     if before:
+                        thought += 1
                         yield "thinking", before
                     in_tag = False
                 if text:
+                    if in_tag:
+                        thought += 1
+                    elif text.strip() or said:
+                        said = True
                     yield ("thinking" if in_tag else "token"), text
+                if think and not said and thought > think_budget:
+                    break  # leaving the with-block closes the connection, which stops the generation in Ollama
+        if think and not said and thought:
+            yield "retry", ""
+            yield from self.stream_chat(model, messages, think=False)
 
 
 runtime = Runtime()

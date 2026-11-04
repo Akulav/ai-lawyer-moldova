@@ -359,6 +359,10 @@ def _answer(con, question: str, history: list[dict]):
             if kind == "thinking":
                 thinking.append(text)
                 yield dict(type="thinking", text=text)
+            elif kind == "retry":  # reasoning ran too long without an answer; the model now answers directly
+                full.clear()
+                yield dict(type="step", id="answer", label="Formulez răspunsul", status="active",
+                           note="Raționamentul a durat prea mult; modelul răspunde acum direct, fără raționament.")
             else:
                 if not started:
                     yield dict(type="step", id="answer", label="Răspuns", status="done")
@@ -369,7 +373,10 @@ def _answer(con, question: str, history: list[dict]):
         yield dict(type="error", message=f"Eroare la generare: {e}")
         return
     final = "".join(full)
-    bad = sorted({int(x) for x in re.findall(r"\[S(\d+)\]", final)} - {s["n"] for s in sources})
+    if not final.strip():
+        yield dict(type="error", message="Modelul nu a formulat un răspuns. Încercați din nou sau reformulați întrebarea.")
+        return
+    bad =sorted({int(x) for x in re.findall(r"\[S(\d+)\]", final)} - {s["n"] for s in sources})
     if bad:
         warnings.append("Răspunsul conține trimiteri care nu corespund unei surse: " + ", ".join(f"S{b}" for b in bad) + ". Tratați acele afirmații ca neverificate.")
     if not re.search(r"\[S\d+\]", final):
